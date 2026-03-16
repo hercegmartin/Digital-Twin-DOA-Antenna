@@ -60,4 +60,4 @@ In a cross array, a 1D scan produces a power distribution equivalent to a binomi
 ### 3.2 Mathematical Super-Resolution: MUSIC
 To break the Rayleigh barrier, the *Multiple Signal Classification* algorithm isolates the noise subspace $\mathbf{E}_n$ via the eigenvalue decomposition of $\mathbf{R}_x$. The pseudo-spectrum exploits the orthogonality between the actual signal vectors and this subspace:
 $$P_{MUSIC}(\theta) = \frac{1}{\mathbf{a}^H(\theta) \mathbf{E}_n \mathbf{E}_n^H \mathbf{a}(\theta)}$$
-The simulator extracts this peak's sharpness and the localization Root Mean Square Error ($RMSE$). If mutual coupling or hardware asymmetry destroys phase coherence, the RMSE diverges, proving the topology unviable for DOA estimation.
+The simulator extracts this peak's sharpness and the localization Root Mean Square Error ($RMSE$).
