@@ -57,5 +57,7 @@ En un arreglo en cruz, un escaneo 1D produce una distribución de potencia equiv
 
 ### 3.2 Super-Resolución Matemática: MUSIC
 Para romper la barrera de Rayleigh, el algoritmo *Multiple Signal Classification* aísla el subespacio de ruido $\mathbf{E}_n$ mediante la descomposición en autovalores de $\mathbf{R}_x$. El pseudo-espectro explota la ortogonalidad entre los vectores de señal y este subespacio:
-$$P_{MUSIC}(\theta) = \frac{1}{\mathbf{a}^H(\theta) \mathbf{E}_n \mathbf{E}_n^H \mathbf{a}(\theta)}$$
+
+$$P_{\text{MUSIC}}(\theta) = \frac{1}{\mathbf{a}^H(\theta) \mathbf{E}_n \mathbf{E}_n^H \mathbf{a}(\theta)}$$
+
 El simulador extrae la agudeza de este pico y el Error Cuadrático Medio ($RMSE$). Si el acoplamiento mutuo o la asimetría del hardware destruyen la coherencia de fase, el RMSE diverge, demostrando que la topología es inviable para estimación DOA.
