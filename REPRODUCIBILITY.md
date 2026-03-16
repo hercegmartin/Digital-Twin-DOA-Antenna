@@ -36,8 +36,8 @@ To prevent memory saturation during long sweeps, chart generation (`plt.show()`)
 
 For each simulation, the script generates an isolated folder containing:
 * `simp_patch_array.xml`: The raw geometry file for AppCSXCAD inspection.
-* `1_S11_Central.png`: Impedance matching and resonance chart.
-* `2_FoV_Fisico.png`: Radiation lobe cut (E and H Planes).
-* `3_Espectro_DOA.png`: Superposition of the DOA algorithms' pseudo-spectrum.
+* `1_S11_Matching.png`: Impedance matching and resonance chart.
+* `2_Physical_FoV.png`: Radiation lobe cut (E and H Planes).
+* `3_DOA_Spectrum.png`: Superposition of the DOA algorithms' pseudo-spectrum.
 
-Finally, the script unifies the metrics from all iterations into a master `Reporte_Barrido.txt` file with a standard table format, ideal for subsequent parsing by a Bayesian Optimization script.
+Finally, the script unifies the metrics from all iterations into a master `Sweep_Report.txt` file with a standard table format, ideal for subsequent parsing by a Bayesian Optimization script.
