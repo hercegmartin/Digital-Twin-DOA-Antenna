@@ -43,7 +43,7 @@ FDTD solves the fields strictly within a volume bounded by Perfectly Matched Lay
 
 The fundamental deliverable of this simulation is the complex Steering Vector (or Manifold) $\mathbf{A}(\theta)$. Unlike the ideal analytical model ($\mathbf{a}(\theta) = e^{-j \mathbf{k} \cdot \mathbf{r}}$), this vector extracts the pure electromagnetic footprint: the "shadowing" of inactive patches and the individual phase center shift induced by the corner truncations.
 
-![Field of View - E and H Plane Radiation Patterns](assets/2_FoV_Fisico.png)
+![Field of View - E and H Plane Radiation Patterns](assets/2_Physical_FoV.png)
 
 ---
 
@@ -61,5 +61,14 @@ In a cross array, a 1D scan produces a power distribution equivalent to a binomi
 To break the Rayleigh barrier, the *Multiple Signal Classification* algorithm isolates the noise subspace $\mathbf{E}_n$ via the eigenvalue decomposition of $\mathbf{R}_x$. The pseudo-spectrum exploits the orthogonality between the actual signal vectors and this subspace:
 
 $$P_{\text{MUSIC}}(\theta) = \frac{1}{\mathbf{a}^H(\theta) \mathbf{E}_n \mathbf{E}_n^H \mathbf{a}(\theta)}$$
+
+## Changelog
+
+### [v1.1.0] - 2026-03-22: FDTD Physics Update (Mesh calibration and Feed Anchoring)
+This update solves frequency shift issues and false inductive resonances by improving the fidelity of the electromagnetic model in openEMS.
+
+* **Dielectric-aware Mesh:** Base mesh resolution is now scaled by the substrate's relative permittivity ($\sqrt{\epsilon_r}$). This prevents EM wave sub-sampling inside the FR4 and fixes major frequency shift errors.
+* **Feed Mesh Anchoring:** Forced exact mesh lines at the feed point coordinates to eliminate mathematical interpolation errors during voltage injection.
+* **Lumped Port Collision Fix:** Removed the redundant PEC cylinder that overlapped with the 1D LumpedPort, fixing a numerical short-circuit when using realistic 0.5 mm diameter pins (0.25 mm inner radius) and restoring proper inductive behavior.
 
 The simulator extracts this peak's sharpness and the localization Root Mean Square Error ($RMSE$).
