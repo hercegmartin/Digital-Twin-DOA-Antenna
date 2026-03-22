@@ -6,35 +6,35 @@ import matplotlib.pyplot as plt
 # 1. PARAMETER MANAGEMENT
 
 # Free Parameters (Geometric Sweep)
-f0_list = [1.7475e9]            # Target center frequency (Hz)
-D_list = [34.5]                 # Length of each patch side (mm)
+f0_list = [1.7475e9]            # Target central frequency (Hz)
+D_list = [34.5]                 # Length of each side of the square patch (mm)
 L_cut_list = [3.0]              # Corner cut length for circular polarization (mm)
-divisors_list = [2.0]           # Wavelength divisor for patch spacing
-thickness_list = [1.6]          # FR4 substrate height (mm)
+divisors_list = [2.0]           # Wavelength divisor for patch separation
+thickness_list = [1.6]          # FR4 substrate thickness (mm)
 alpha_deg_list = [90.0]         # Angle between cross arms (90 = orthogonal cross)
 
 # Multi-Fidelity Parameters
-t_copper = 0.0                  # Copper thickness (mm). 0.0 = Fast (2D). 0.035 = Precise/Manufacturing (3D, 1 oz).
-max_timesteps = 60000           # FDTD Limit. Increase to 150000 if t_copper > 0 to avoid premature cuts.
+copper_thickness = 0.0          # Copper thickness (mm). 0.0 = Fast (2D). 0.035 = Precise/Fabrication (3D, 1 oz).
+max_timesteps = 60000           # FDTD Limit. Increase to 150000 if copper_thickness > 0 to avoid premature cuts.
 
 # Fixed Parameters (Materials and Internal Geometry)
-epsR_substrate = 4.5            # FR4 relative permittivity
+epsR_substrate = 4.5            # Relative permittivity of FR4
 epsR_connector = 2.1            # Teflon permittivity for SMA connector
 feed_resistance = 50.0          # Port impedance (Ohms)
-feed_offset_x = 7.0             # Distance from center inwards for 50 ohms matching (mm)
-outer_pin_length = 5.0          # SMA connector pin length (mm)
-sma_outer_radius = 2.5          # SMA shield outer radius (mm)
-sma_inner_radius = 2.0          # SMA inner pin radius (mm)
+feed_offset_x = 7.0             # Distance from the center inward to match 50 ohms (mm)
+outer_pin_length = 5.0          # Length of the SMA connector pin (mm)
+sma_outer_radius = 0.65         # Outer radius of the SMA shield (mm)
+sma_inner_radius = 0.25         # Inner pin radius (mm)
 
 # Fixed Parameters (FDTD Simulation and Mesh)
 c0 = 299792458
-edge_margin = 40.0              # Extra substrate margin from the furthest antenna (mm)
-air_box_margin = 45.0           # Air above the antenna before the PML limit (mm)
+edge_margin = 40.0              # Extra substrate edge from the farthest antenna (mm)
+air_buffer = 45.0               # Air above the antenna before the PML boundary (mm)
 substrate_cells = 4             # Vertical discretization in the substrate
-beam_drop_db = 3.0              # dB drop from maximum to measure physical lobe width
+hpbw_drop_db = 3.0              # dB drop from the maximum to measure the physical beamwidth
 
 # Flow Control Flags
-post_process_only = False       # Flag to avoid simulating if data already exists
+only_post_process = False       # Flag to skip simulation if data already exists
 verify_first_geometry = True    # Flag to open the 3D interface before starting the sweep
 
 
@@ -50,16 +50,16 @@ def calculate_hpbw(theta, pattern_dB, drop_db):
     
     return abs(theta_right - theta_left)
 
-def calculate_rmse(theta, spectrum_dB, target_angles):
-    """ Calculates the Root Mean Square Error of the peak localization """
+def calculate_rmse(theta, spectrum_dB, true_angles):
+    """ Calculates the Root Mean Square Error of the peak locations """
     error_sq = 0.0
-    for ang in target_angles:
+    for ang in true_angles:
         range_idx = np.abs(theta - ang) < 20
         if not np.any(range_idx): return 999.0
         peak_idx = np.argmax(spectrum_dB[range_idx])
         calc_ang = theta[range_idx][peak_idx]
         error_sq += (calc_ang - ang)**2
-    return np.sqrt(error_sq / len(target_angles))
+    return np.sqrt(error_sq / len(true_angles))
 
 openems_path = r'C:\Users\herce\openEMS\openEMS'
 if hasattr(os, 'add_dll_directory'): os.add_dll_directory(openems_path)
@@ -71,15 +71,15 @@ from openEMS.physical_constants import *
 
 final_results = []
 
-# 2. SAVING CONFIGURATION
+# 2. SAVE CONFIGURATION
 root_output = r'C:\Users\herce\Conda\Sims\Simple_Patch_Antenna' 
-base_sweep = os.path.join(root_output, "Auto_Sweep")
+sweep_base = os.path.join(root_output, "Auto_Sweep")
 
 sweep_counter = 1
-sweep_folder = f"{base_sweep}_{sweep_counter}"
+sweep_folder = f"{sweep_base}_{sweep_counter}"
 while os.path.exists(sweep_folder):
     sweep_counter += 1
-    sweep_folder = f"{base_sweep}_{sweep_counter}"
+    sweep_folder = f"{sweep_base}_{sweep_counter}"
 
 os.makedirs(sweep_folder)
 report_file = os.path.join(sweep_folder, "Sweep_Report.txt")
@@ -92,7 +92,7 @@ with open(report_file, "w") as f:
 
 def simulate_and_process_doa(manifold, theta_array, source_angles, SNR_dB=15):
     """
-    Generates a standardized DOA scenario and calculates pseudo-spectrums.
+    Generates a standardized DOA scenario and calculates pseudo-spectra.
     manifold: Complex matrix (N_antennas, N_angles) exported from openEMS.
     """
     K = len(source_angles)
@@ -136,7 +136,7 @@ def simulate_and_process_doa(manifold, theta_array, source_angles, SNR_dB=15):
     return P_music, P_bartlett
 
 def measure_doa_peak_width(theta, spectrum_dB, expected_angle, drop=3.0):
-    """ Measures peak sharpness (Resolution Power). Returns 999 if unresolved. """
+    """ Measures peak sharpness (Resolution Power). Returns 999 if it fails to resolve. """
     range_idx = np.where((theta >= expected_angle - 10) & (theta <= expected_angle + 10))[0]
     if len(range_idx) == 0: return 999.0
     
@@ -152,7 +152,6 @@ def measure_doa_peak_width(theta, spectrum_dB, expected_angle, drop=3.0):
     width = theta[right] - theta[left]
     if width > 35: return 999.0
     return width
-
 
 
 # 3. MASTER LOOP
@@ -172,21 +171,21 @@ for f0 in f0_list:
                         if not os.path.exists(study_path): os.makedirs(study_path)
 
                         n_sim = len(glob.glob(os.path.join(study_path, 'sim_*'))) + 1
-                        Sim_Path = os.path.join(study_path, f"sim_{n_sim}")
-                        os.makedirs(Sim_Path)
+                        sim_path = os.path.join(study_path, f"sim_{n_sim}")
+                        os.makedirs(sim_path)
 
                         print(f"\n>>> STARTING FLOW: D={D}, L={L_cut}, Alpha={alpha_deg}°")
                         
                         alpha_rad = np.deg2rad(alpha_deg)
                         positions = [
-                            (0, 0),                                                                         
-                            (element_spacing, 0),                                                      
-                            (-element_spacing, 0),                                                     
+                            (0, 0),                                                                                                 
+                            (element_spacing, 0),                                                                              
+                            (-element_spacing, 0),                                                                             
                             (element_spacing * np.cos(alpha_rad), element_spacing * np.sin(alpha_rad)),    
                             (-element_spacing * np.cos(alpha_rad), -element_spacing * np.sin(alpha_rad))   
                         ]
 
-                        # Residual floating point cleanup to prevent mesh errors
+                        # Float cleanup to avoid mesh errors
                         positions = [(np.round(x, 4), np.round(y, 4)) for x, y in positions]
 
                         max_x = max([abs(x) for x, y in positions]) + (D / 2.0)
@@ -208,12 +207,12 @@ for f0 in f0_list:
                         # 4. SEQUENTIAL EXCITATION LOOP (x5)
 
                         for active_port in range(5):
-                            Sim_Path_Port = os.path.join(Sim_Path, f'port_{active_port}')
-                            os.makedirs(Sim_Path_Port)
+                            sim_path_port = os.path.join(sim_path, f'port_{active_port}')
+                            os.makedirs(sim_path_port)
                             
                             print(f"    -> Simulating FDTD Active Port: {active_port}/4 ...")
 
-                            SimBox = np.array([substrate_width + 2*air_box_margin, substrate_length + 2*air_box_margin, 200])
+                            sim_box = np.array([substrate_width + 2*air_buffer, substrate_length + 2*air_buffer, 200])
                             fc = 1e9                                
 
                             FDTD = openEMS(NrTS=max_timesteps, EndCriteria=1e-4) # Dynamic limit
@@ -224,17 +223,24 @@ for f0 in f0_list:
                             FDTD.SetCSX(CSX)
                             mesh = CSX.GetGrid()
                             mesh.SetDeltaUnit(1e-3)
-                            mesh_res = C0/(f0+fc)/1e-3/20   
-
-                            mesh.AddLine('x', [-SimBox[0]/2, SimBox[0]/2])
-                            mesh.AddLine('y', [-SimBox[1]/2, SimBox[1]/2])
                             
-                            # Conditional Z mesh for copper thickness
+                            # --- CORRECTION A: Dielectric-aware mesh resolution ---
+                            mesh_res = (C0 / np.sqrt(epsR_substrate)) / (f0 + fc) / 1e-3 / 20 
+
+                            mesh.AddLine('x', [-sim_box[0]/2, sim_box[0]/2])
+                            mesh.AddLine('y', [-sim_box[1]/2, sim_box[1]/2])
+                            
+                            # Conditional Z-mesh for copper thickness
                             z_lines = np.linspace(0, thickness, substrate_cells+1).tolist()
-                            if t_copper > 0.0:
-                                z_lines.append(thickness + t_copper)
+                            if copper_thickness > 0.0:
+                                z_lines.append(thickness + copper_thickness)
                             mesh.AddLine('z', z_lines)
-                            mesh.AddLine('z', [-SimBox[2]/3, SimBox[2]*2/3])
+                            mesh.AddLine('z', [-sim_box[2]/3, sim_box[2]*2/3])
+
+                            # --- CORRECTION B: Force mesh lines at feed points ---
+                            for x_pos, y_pos in positions:
+                                mesh.AddLine('x', [x_pos - feed_offset_x])
+                                mesh.AddLine('y', [y_pos])
 
                             patch = CSX.AddMetal('patch')
                             ports = []
@@ -244,10 +250,10 @@ for f0 in f0_list:
                                 points_y = [y_pos + D/2, y_pos - D/2 + L_cut, y_pos - D/2, y_pos - D/2, y_pos + D/2 - L_cut, y_pos + D/2]
                                 
                                 # Conditional 3D Extrusion
-                                if t_copper == 0.0:
+                                if copper_thickness == 0.0:
                                     patch.AddPolygon([points_x, points_y], 'z', thickness, priority=10)
                                 else:
-                                    patch.AddLinPoly([points_x, points_y], 'z', thickness, t_copper, priority=10)
+                                    patch.AddLinPoly([points_x, points_y], 'z', thickness, copper_thickness, priority=10)
                                 
                                 sma_dielectric = CSX.AddMaterial(f'sma_dielectric_{i}', epsilon=epsR_connector)
                                 sma_shield = CSX.AddMetal(f'sma_shield_{i}')
@@ -255,14 +261,14 @@ for f0 in f0_list:
                                 sma_shield.AddBox([x_pos - feed_offset_x - sma_outer_radius, y_pos - sma_outer_radius, -outer_pin_length], 
                                                   [x_pos - feed_offset_x + sma_outer_radius, y_pos + sma_outer_radius, 0], priority=1)
                                 sma_dielectric.AddBox([x_pos - feed_offset_x - sma_inner_radius, y_pos - sma_inner_radius, -outer_pin_length], 
-                                                       [x_pos - feed_offset_x + sma_inner_radius, y_pos + sma_inner_radius, 0], priority=2)
+                                                      [x_pos - feed_offset_x + sma_inner_radius, y_pos + sma_inner_radius, 0], priority=2)
 
                                 port_start = [x_pos - feed_offset_x, y_pos, 0]
                                 port_end  = [x_pos - feed_offset_x, y_pos, thickness]
                                 
-                                # Only injects 1V to the active port, others 0V (Passive)
-                                excitation_voltage = 1.0 if i == active_port else 0.0
-                                p = FDTD.AddLumpedPort(i+1, feed_resistance, port_start, port_end, 'z', excitation_voltage, priority=5, edges2grid='xy')
+                                # Excites 1V only on active port, others 0V (Passive)
+                                exc_voltage = 1.0 if i == active_port else 0.0
+                                p = FDTD.AddLumpedPort(i+1, feed_resistance, port_start, port_end, 'z', exc_voltage, priority=5, edges2grid='xy')
                                 ports.append(p)
 
                             substrate = CSX.AddMaterial('substrate', epsilon=epsR_substrate, kappa=kappa)
@@ -276,93 +282,93 @@ for f0 in f0_list:
 
                             nf2ff = FDTD.CreateNF2FFBox()
                             
-                            csx_file = os.path.join(Sim_Path_Port, 'simp_patch_array.xml')
+                            csx_file = os.path.join(sim_path_port, 'simp_patch_array.xml')
                             CSX.Write2XML(csx_file)
 
                             if active_port == 0 and verify_first_geometry and first_simulation:
                                 print("\n>>> OPENING AppCSXCAD FOR VISUAL VERIFICATION...")
                                 os.system(f'AppCSXCAD "{csx_file}"')
-                                response = input("Continue auto sweep? (y/n): ")
+                                response = input("Continue automated sweep? (y/n): ")
                                 if response.lower() != 'y': import sys; sys.exit()
                                 first_simulation = False
 
-                            if not post_process_only:
-                                FDTD.Run(Sim_Path_Port, verbose=0, cleanup=True)
+                            if not only_post_process:
+                                FDTD.Run(sim_path_port, verbose=0, cleanup=True)
 
-                            # 5. POST-PROCESS (HARDWARE PHYSICS)
+                            # 5. POST-PROCESSING (HARDWARE PHYSICS)
 
                             if active_port == 0:
                                 f = np.linspace(max(1e9, f0-fc), f0+fc, 401)
-                                ports[0].CalcPort(Sim_Path_Port, f)
+                                ports[0].CalcPort(sim_path_port, f)
                                 
                                 s11_dB = 20.0 * np.log10(np.abs(ports[0].uf_ref / (ports[0].uf_inc + 1e-15)))
                                 f_res_idx = np.argmin(s11_dB)
                                 min_s11 = s11_dB[f_res_idx]
-                                calc_f_res = f[f_res_idx] # FIX RESONANT FREQUENCY FOR ALL
+                                calc_f_res = f[f_res_idx] # LOCK RESONANT FREQUENCY FOR ALL
 
-                                # SWR Calculation
+                                # --- Calculate SWR ---
                                 gamma = 10**(min_s11 / 20.0)
                                 min_swr = (1 + np.abs(gamma)) / (1 - np.abs(gamma))
 
-                                # Cross Talk (Mutual Coupling) Calculation
+                                # --- Calculate Cross Talk (Mutual Coupling) ---
                                 couplings = []
                                 for p_idx in range(1, 5):
-                                    ports[p_idx].CalcPort(Sim_Path_Port, f)
+                                    ports[p_idx].CalcPort(sim_path_port, f)
                                     s_ix_dB = 20.0 * np.log10(np.abs(ports[p_idx].uf_ref / (ports[0].uf_inc + 1e-15)))
-                                    couplings.append(s_ix_dB[f_res_idx]) # Extracts coupling at exact f_res
+                                    couplings.append(s_ix_dB[f_res_idx]) # Extract coupling at exact f_res
                                 max_cross_talk = np.max(couplings) # Worst case coupling
 
                                 plt.figure(figsize=(8,4))
                                 plt.plot(f/1e9, s11_dB, 'k-')
                                 plt.grid(True); plt.ylabel('S11 (dB)'); plt.xlabel('Frequency (GHz)')
-                                plt.savefig(os.path.join(Sim_Path, '1_S11_Central.png')); plt.close()
+                                plt.savefig(os.path.join(sim_path, '1_S11_Central.png')); plt.close()
 
                                 # Far-Field of Port 0 (Hardware FoV)
-                                nf2ff_res_0 = nf2ff.CalcNF2FF(Sim_Path_Port, calc_f_res, theta_doa, [0., 90.], center=[0,0,0])
-                                fields_matrix = nf2ff_res_0.E_norm[0]
+                                nf2ff_res_0 = nf2ff.CalcNF2FF(sim_path_port, calc_f_res, theta_doa, [0., 90.], center=[0,0,0])
+                                field_matrix = nf2ff_res_0.E_norm[0]
                                 
-                                E_plane_norm = np.squeeze(20.0*np.log10(fields_matrix[:, 0] / (np.max(fields_matrix[:, 0]) + 1e-15)))
-                                H_plane_norm = np.squeeze(20.0*np.log10(fields_matrix[:, 1] / (np.max(fields_matrix[:, 1]) + 1e-15)))
+                                E_plane_norm = np.squeeze(20.0*np.log10(field_matrix[:, 0] / (np.max(field_matrix[:, 0]) + 1e-15)))
+                                H_plane_norm = np.squeeze(20.0*np.log10(field_matrix[:, 1] / (np.max(field_matrix[:, 1]) + 1e-15)))
                                 
-                                hpbw_E = calculate_hpbw(theta_doa, E_plane_norm, beam_drop_db)
-                                hpbw_H = calculate_hpbw(theta_doa, H_plane_norm, beam_drop_db)
+                                hpbw_E = calculate_hpbw(theta_doa, E_plane_norm, hpbw_drop_db)
+                                hpbw_H = calculate_hpbw(theta_doa, H_plane_norm, hpbw_drop_db)
 
                                 plt.figure(figsize=(8,4))
                                 plt.plot(theta_doa, E_plane_norm + nf2ff_res_0.Dmax[0], 'k-', label=f'E-plane FoV: {hpbw_E:.1f}°')
                                 plt.plot(theta_doa, H_plane_norm + nf2ff_res_0.Dmax[0], 'r--', label=f'H-plane FoV: {hpbw_H:.1f}°')
-                                plt.axhline(nf2ff_res_0.Dmax[0] - beam_drop_db, color='gray', linestyle=':')
-                                plt.grid(True); plt.legend(); plt.ylabel('Directivity (dBi)'); plt.xlabel('Theta Angle (Degrees)')
-                                plt.savefig(os.path.join(Sim_Path, '2_FoV_Fisico.png'))
-                                plt.close() # Closes figure so it doesn't print to console
+                                plt.axhline(nf2ff_res_0.Dmax[0] - hpbw_drop_db, color='gray', linestyle=':')
+                                plt.grid(True); plt.legend(); plt.ylabel('Directivity (dBi)'); plt.xlabel('Angle Theta (Degrees)')
+                                plt.savefig(os.path.join(sim_path, '2_Physical_FoV.png'))
+                                plt.close() # Close figure to avoid console printing
 
                             # Strict Complex Phase Extraction referenced to [0,0,0]
-                            nf2ff_calib = nf2ff.CalcNF2FF(Sim_Path_Port, calc_f_res, theta_doa, [0.], center=[0,0,0])
+                            nf2ff_calib = nf2ff.CalcNF2FF(sim_path_port, calc_f_res, theta_doa, [0.], center=[0,0,0])
                             manifold_complex[active_port, :] = nf2ff_calib.E_theta[0][0, :] # Co-polar complex component
 
-                        # 6. DIGITAL POST-PROCESS (DOA RESOLUTION)
+                        # 6. DIGITAL POST-PROCESSING (DOA RESOLUTION)
 
                         print("    -> Calculating (MUSIC / Bartlett) ...")
                         
-                        # MANIFOLD NORMALIZATION (For SNR and synthetic noise to work properly)
+                        # MANIFOLD NORMALIZATION (For stable SNR and synthetic noise)
                         manifold_complex = manifold_complex / np.max(np.abs(manifold_complex))
                         
-                        escenario_angles = [-25.0, 25.0]
-                        P_music, P_bartlett = simulate_and_process_doa(manifold_complex, theta_doa, escenario_angles, SNR_dB=15)
+                        scenario_angles = [-25.0, 25.0]
+                        P_music, P_bartlett = simulate_and_process_doa(manifold_complex, theta_doa, scenario_angles, SNR_dB=15)
                         
-                        res_bartlett = measure_doa_peak_width(theta_doa, P_bartlett, escenario_angles[1])
-                        res_music = measure_doa_peak_width(theta_doa, P_music, escenario_angles[1])
-                        rmse_music = calculate_rmse(theta_doa, P_music, escenario_angles)
+                        res_bartlett = measure_doa_peak_width(theta_doa, P_bartlett, scenario_angles[1])
+                        res_music = measure_doa_peak_width(theta_doa, P_music, scenario_angles[1])
+                        rmse_music = calculate_rmse(theta_doa, P_music, scenario_angles)
 
                         # Software spectrum plot
                         plt.figure(figsize=(10,5))
                         plt.plot(theta_doa, P_bartlett, 'b--', label=f'Bartlett (Res: {res_bartlett:.1f}°)')
                         plt.plot(theta_doa, P_music, 'r-', lw=2, label=f'MUSIC (Res: {res_music:.1f}°)')
-                        plt.axvline(-10, color='k', linestyle=':', alpha=0.5)
-                        plt.axvline(10, color='k', linestyle=':', alpha=0.5)
-                        plt.title(f'DOA Resolution Test (Zenith to $\pm10^\circ$)')
-                        plt.xlabel('Theta Angle (Degrees)'); plt.ylabel('Pseudo-Spectrum (dB)')
+                        plt.axvline(-25, color='k', linestyle=':', alpha=0.5)
+                        plt.axvline(25, color='k', linestyle=':', alpha=0.5)
+                        plt.title(r'DOA Resolution Test (Zenith to $\pm25^\circ$)')
+                        plt.xlabel('Angle Theta (Degrees)'); plt.ylabel('Pseudo-Spectrum (dB)')
                         plt.grid(True); plt.legend(); plt.ylim([-40, 5])
-                        plt.savefig(os.path.join(Sim_Path, '3_Espectro_DOA.png')); plt.close()
+                        plt.savefig(os.path.join(sim_path, '3_DOA_Spectrum.png')); plt.close()
 
                         # 7. FINAL REPORT
 
@@ -389,4 +395,4 @@ print("-" * 138)
 for r in final_results:
     print(f"{r['f0_GHz']:<9.3f} | {r['D_mm']:<7.1f} | {r['L_mm']:<7.1f} | {r['Divisor']:<5.1f} | {r['h_mm']:<7.1f} | {r['f_res_GHz']:<12.3f} | {r['S11_dB']:<9.2f} | {r['SWR']:<5.2f} | {r['CT_dB']:<8.2f} | {r['FoV_E']:<9.1f} | {r['Res_B']:<9} | {r['Res_M']:<9} | {r['RMSE']:<9}")
 print("="*138 + "\n")
-print(f"Everything saved in: {sweep_folder}")
+print(f"All data saved to: {sweep_folder}")
