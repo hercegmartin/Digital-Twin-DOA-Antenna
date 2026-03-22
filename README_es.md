@@ -41,7 +41,7 @@ FDTD resuelve los campos dentro de un volumen acotado por capas absorbentes (PML
 
 El entregable fundamental de la simulación es el *Steering Vector* o *Manifold* complejo $\mathbf{A}(\theta)$. A diferencia del modelo analítico ideal ($\mathbf{a}(\theta) = e^{-j \mathbf{k} \cdot \mathbf{r}}$), este vector extrae la huella electromagnética pura: el "sombreado" de los parches inactivos y el desplazamiento del centro de fase individual inducido por el truncado de las esquinas.
 
-![Field of View - Diagramas de Radiación en Planos E y H](assets/2_FoV_Fisico.png)
+![Field of View - Diagramas de Radiación en Planos E y H](assets/2_Physical_FoV.png)
 
 ---
 
@@ -61,3 +61,15 @@ Para romper la barrera de Rayleigh, el algoritmo *Multiple Signal Classification
 $$P_{\text{MUSIC}}(\theta) = \frac{1}{\mathbf{a}^H(\theta) \mathbf{E}_n \mathbf{E}_n^H \mathbf{a}(\theta)}$$
 
 El simulador extrae la agudeza de este pico y el Error Cuadrático Medio ($RMSE$). Si el acoplamiento mutuo o la asimetría del hardware destruyen la coherencia de fase, el RMSE diverge, demostrando que la topología es inviable para estimación DOA.
+
+
+
+## [v1.1.0] - 2026-03-22
+### Actualización de Física FDTD: Calibración de malla y anclaje del puerto SMA
+
+Esta actualización soluciona problemas de corrimiento de frecuencia y resonancias falsas mejorando la fidelidad del modelo electromagnético en openEMS.
+
+**Correcciones y Cambios:**
+* **Malla ajustada al dieléctrico (Dielectric-aware Mesh):** La resolución base de la malla ahora se escala por la permitividad relativa del sustrato ($\sqrt{\epsilon_r}$). Esto evita el sub-muestreo de la onda electromagnética dentro del FR4 y corrige errores graves de corrimiento en la frecuencia de resonancia.
+* **Anclaje de la malla en la alimentación (Feed Mesh Anchoring):** Se forzaron líneas de malla exactas en las coordenadas espaciales del punto de alimentación. Esto elimina los errores de interpolación matemática del simulador durante la inyección de voltaje.
+* **Colisión del Lumped Port:** Se eliminó el cilindro de cobre (PEC) redundante que se superponía con el `LumpedPort` 1D. Esto soluciona un cortocircuito numérico que ocurría al simular pines físicos con dimensiones comerciales realistas (diámetro de 0.5 mm / radio interior de 0.25 mm), restaurando el comportamiento inductivo correcto del modelo.
